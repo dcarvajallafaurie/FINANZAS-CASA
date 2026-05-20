@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Finanzas Pro</title>
+    <!-- Configuración para iPhone -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Finanzas">
+<!-- Ícono de la app (puedes cambiar el enlace por cualquier imagen cuadrada) -->
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #4f46e5;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            padding: 10px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Tabs Navigation */
+        .tabs {
+            display: flex;
+            background: var(--primary-color);
+            padding-top: 10px;
+        }
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            padding: 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-btn.active {
+            color: white;
+            border-bottom: 3px solid white;
+        }
+
+        .tab-content { display: none; flex-grow: 1; overflow-y: auto; padding: 20px; }
+        .tab-content.active { display: block; }
+
+        /* Dashboard Styles */
+        .header-balance { text-align: center; margin-bottom: 20px; }
+        .header-balance h2 { font-size: 2.5rem; color: var(--primary-color); }
+        .header-balance p { color: var(--text-muted); }
+
+        .summary-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        .summary-card { flex: 1; padding: 15px; border-radius: 12px; background: var(--bg-color); text-align: center; }
+        .summary-card.income h3 { color: var(--success-color); }
+        .summary-card.expense h3 { color: var(--danger-color); }
+
+        .section-title { font-size: 1.1rem; margin-bottom: 15px; color: var(--text-main); border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }
+
+        .transaction-list { list-style: none; margin-bottom: 60px; }
+        .transaction-item {
+            background: var(--card-bg); border: 1px solid #e5e7eb; border-radius: 10px;
+            padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .transaction-item.plus { border-left: 4px solid var(--success-color); }
+        .transaction-item.minus { border-left: 4px solid var(--danger-color); }
+        
+        .t-info h4 { margin-bottom: 2px; font-size: 0.95rem; }
+        .t-info small { color: var(--text-muted); font-size: 0.8rem; display: block; }
+        .tag-badge { background: #e0e7ff; color: var(--secondary-color); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-top: 4px; display: inline-block;}
+        
+        .t-amount { font-weight: bold; }
+        .delete-btn { background: var(--danger-color); color: white; border: none; padding: 5px 8px; border-radius: 5px; cursor: pointer; margin-left: 10px;}
+
+        /* Budgets Styles */
+        .budget-item { margin-bottom: 20px; }
+        .budget-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem;}
+        .progress-bar { width: 100%; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--success-color); transition: 0.3s; }
+        .progress-fill.warning { background: var(--warning-color); }
+        .progress-fill.danger { background: var(--danger-color); }
+        .budget-inputs { display: flex; gap: 10px; margin-top: 10px; }
+        .budget-inputs input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .budget-inputs button { padding: 8px 12px; background: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer;}
+
+        /* FAB & Modal */
+        .add-btn {
+            position: absolute; bottom: 20px; right: 20px;
+            background: var(--primary-color); color: white; border: none;
+            width: 55px; height: 55px; border-radius: 50%; font-size: 20px;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4); cursor: pointer; z-index: 10;
+        }
+
+        .modal {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: flex-end;
+            opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100;
+        }
+        .modal.active { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: white; width: 100%; border-top-left-radius: 20px; border-top-right-radius: 20px;
+            padding: 20px; transform: translateY(100%); transition: 0.3s; max-height: 90vh; overflow-y: auto;
+        }
+        .modal.active .modal-content { transform: translateY(0); }
+        
+        .form-control { margin-bottom: 12px; }
+        .form-control label { display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text-muted);}
+        .form-control input, .form-control select {
+            width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;
+        }
+        .btn-submit { width: 100%; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .close-modal { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.2rem; color: var(--text-muted); cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Navegación por pestañas -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('dashboard')">Resumen</button>
+            <button class="tab-btn" onclick="switchTab('budgets')">Presupuestos</button>
+        </div>
+
+        <!-- Pestaña 1: Resumen de transacciones -->
+        <div id="tab-dashboard" class="tab-content active">
+            <div class="header-balance">
+                <p>Saldo Total</p>
+                <h2 id="balance">$0.00</h2>
+            </div>
+            <div class="summary-container">
+                <div class="summary-card income">
+                    <p>Ingresos</p>
+                    <h3 id="money-plus">+$0.00</h3>
+                </div>
+                <div class="summary-card expense">
+                    <p>Egresos</p>
+                    <h3 id="money-minus">-$0.00</h3>
+                </div>
+            </div>
+
+            <div style="height: 180px; margin-bottom: 20px;">
+                <canvas id="expenseChart"></canvas>
+            </div>
+
+            <h3 class="section-title">Movimientos Recientes</h3>
+            <ul id="list" class="transaction-list"></ul>
+        </div>
+
+        <!-- Pestaña 2: Presupuestos y Límites -->
+        <div id="tab-budgets" class="tab-content">
+            <h3 class="section-title">Límites Mensuales por Categoría</h3>
+            <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 15px;">Establece cuánto quieres gastar al mes. Te avisaremos si te pasas.</p>
+            <div id="budget-list">
+                <!-- Se inyectan los presupuestos con JS -->
+            </div>
+        </div>
+
+        <button class="add-btn" onclick="toggleModal()"><i class="fas fa-plus"></i></button>
+
+        <!-- Modal para nuevo registro -->
+        <div class="modal" id="modal">
+            <div class="modal-content">
+                <button class="close-modal" onclick="toggleModal()"><i class="fas fa-times"></i></button>
+                <h3 class="section-title">Nuevo Movimiento</h3>
+                <form id="form">
+                    <div class="form-control">
+                        <label>Tipo</label>
+                        <select id="type" onchange="updateCategories()">
+                            <option value="expense">Egreso (-)</option>
+                            <option value="income">Ingreso (+)</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label>Descripción (Comercio / Motivo)</label>
+                        <!-- La magia automática sucede aquí al escribir -->
+                        <input type="text" id="text" placeholder="Ej. Uber, Supermercado, Cine..." oninput="autoCategorize()" required />
+                    </div>
+                    <div class="form-control">
+                        <label>Categoría <span style="font-size: 0.7rem; color: var(--primary-color);">(Auto-asignada)</span></label>
+                        <select id="category" required></select>
+                    </div>
+                    <div class="form-control">
+                        <label>Monto</label>
+                        <input type="number" id="amount" placeholder="0.00" step="0.01" required />
+                    </div>
+                    <div class="form-control">
+                        <label>Etiquetas (Opcional, separadas por coma)</label>
+                        <input type="text" id="tags" placeholder="Ej. #Vacaciones2026, #Trabajo" />
+                    </div>
+                    <button type="submit" class="btn-submit">Guardar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURACIÓN DE DATOS ---
+        const categories = {
+            expense: ["Alimentación y Bebidas", "Vivienda", "Transporte", "Salud y Bienestar", "Entretenimiento", "Educación", "Ropa y Cuidado Personal", "Otros Gastos"],
+            income: ["Salario", "Inversiones", "Regalos", "Otros Ingresos"]
+        };
+
+        // Motor de Reglas (Simula IA de categorización)
+        const autoRules = {
+            "uber": "Transporte", "didi": "Transporte", "gasolina": "Transporte", "bus": "Transporte", "mantenimiento": "Transporte",
+            "super": "Alimentación y Bebidas", "restaurante": "Alimentación y Bebidas", "café": "Alimentación y Bebidas", "mcdonalds": "Alimentación y Bebidas",
+            "alquiler": "Vivienda", "luz": "Vivienda", "agua": "Vivienda", "internet": "Vivienda",
+            "farmacia": "Salud y Bienestar", "médico": "Salud y Bienestar", "gimnasio": "Salud y Bienestar", "gym": "Salud y Bienestar",
+            "cine": "Entretenimiento", "netflix": "Entretenimiento", "spotify": "Entretenimiento", "juego": "Entretenimiento",
+            "libro": "Educación", "curso": "Educación", "colegio": "Educación", "universidad": "Educación",
+            "ropa": "Ropa y Cuidado Personal", "zapatos": "Ropa y Cuidado Personal", "peluquería": "Ropa y Cuidado Personal", "salón": "Ropa y Cuidado Personal",
+            "sueldo": "Salario", "nomina": "Salario", "dividendo": "Inversiones"
+        };
+
+        // Estado de la app
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let budgets = JSON.parse(localStorage.getItem('budgets')) || {};
+        let chartInstance = null;
+
+        // Elementos DOM
+        const list = document.getElementById('list');
+        const budgetList = document.getElementById('budget-list');
+        const form = document.getElementById('form');
+
+        // --- 2. FUNCIONES DE INTERFAZ ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            if(tabId === 'budgets') renderBudgets();
+        }
+
+        function toggleModal() {
+            document.getElementById('modal').classList.toggle('active');
+            updateCategories();
+        }
+
+        function updateCategories() {
+            const type = document.getElementById('type').value;
+            const catSelect = document.getElementById('category');
+            catSelect.innerHTML = '';
+            categories[type].forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat; option.innerText = cat;
+                catSelect.appendChild(option);
+            });
+        }
+
+        // --- 3. MOTOR DE REGLAS (Automatización de Categorías) ---
+        function autoCategorize() {
+            const text = document.getElementById('text').value.toLowerCase();
+            const typeSelect = document.getElementById('type');
+            const catSelect = document.getElementById('category');
+
+            for (const [keyword, category] of Object.entries(autoRules)) {
+                if (text.includes(keyword)) {
+                    // Si la categoría pertenece a ingresos, cambiar el tipo automáticamente
+                    if (categories.income.includes(category)) {
+                        typeSelect.value = 'income';
+                    } else {
+                        typeSelect.value = 'expense';
+                    }
+                    updateCategories();
+                    catSelect.value = category;
+                    break;
+                }
+            }
+        }
+
+        // --- 4. LÓGICA PRINCIPAL ---
+        function addTransaction(e) {
+            e.preventDefault();
+            const type = document.getElementById('type').value;
+            const text = document.getElementById('text').value;
+            const category = document.getElementById('category').value;
+            const amountVal = parseFloat(document.getElementById('amount').value);
+            const tags = document.getElementById('tags').value;
+
+            const amount = type === 'expense' ? -Math.abs(amountVal) : Math.abs(amountVal);
+
+            // Verificar Presupuesto antes de guardar
+            if (type === 'expense' && budgets[category]) {
+                const currentSpent = getSpentByCategory(category);
+                if ((currentSpent + Math.abs(amount)) > budgets[category]) {
+                    alert(`¡Alerta! Este gasto supera tu presupuesto establecido para "${category}".`);
+                }
+            }
+
+            const transaction = {
+                id: Math.floor(Math.random() * 100000000),
+                text, amount, category, tags,
+                date: new Date().toLocaleDateString()
+            };
+
+            transactions.unshift(transaction); // Añadir al inicio
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            
+            e.target.reset();
+            toggleModal();
+            init();
+        }
+
+        function removeTransaction(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            init();
+        }
+
+        function renderTransactions() {
+            list.innerHTML = '';
+            transactions.forEach(t => {
+                const sign = t.amount < 0 ? '-' : '+';
+                const cssClass = t.amount < 0 ? 'minus' : 'plus';
+                
+                // Procesar etiquetas
+                let tagsHTML = '';
+                if(t.tags) {
+                    const tagArray = t.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+                    tagsHTML = tagArray.map(tag => `<span class="tag-badge">${tag.startsWith('#') ? tag : '#'+tag}</span>`).join(' ');
+                }
+
+                const item = document.createElement('li');
+                item.className = `transaction-item ${cssClass}`;
+                item.innerHTML = `
+                    <div class="t-info">
+                        <h4>${t.text}</h4>
+                        <small>${t.category} | ${t.date}</small>
+                        <div>${tagsHTML}</div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <span class="t-amount ${cssClass}">${sign}$${Math.abs(t.amount).toFixed(2)}</span>
+                        <button class="delete-btn" onclick="removeTransaction(${t.id})"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function updateSummary() {
+            const amounts = transactions.map(t => t.amount);
+            const total = amounts.reduce((acc, item) => (acc += item), 0).toFixed(2);
+            const income = amounts.filter(i => i > 0).reduce((acc, item) => (acc += item), 0).toFixed(2);
+            const expense = (amounts.filter(i => i < 0).reduce((acc, item) => (acc += item), 0) * -1).toFixed(2);
+
+            document.getElementById('balance').innerText = `$${total}`;
+            document.getElementById('money-plus').innerText = `+$${income}`;
+            document.getElementById('money-minus').innerText = `-$${expense}`;
+        }
+
+        function updateChart() {
+            const expenseTotals = {};
+            categories.expense.forEach(c => expenseTotals[c] = 0);
+            
+            transactions.forEach(t => {
+                if(t.amount < 0 && expenseTotals[t.category] !== undefined) {
+                    expenseTotals[t.category] += Math.abs(t.amount);
+                }
+            });
+
+            const labels = Object.keys(expenseTotals).filter(k => expenseTotals[k] > 0);
+            const data = labels.map(k => expenseTotals[k]);
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.length ? labels : ['Sin gastos'],
+                    datasets: [{
+                        data: data.length ? data : [1],
+                        backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: {size: 10} } } } }
+            });
+        }
+
+        // --- 5. LÓGICA DE PRESUPUESTOS ---
+        function getSpentByCategory(category) {
+            return transactions
+                .filter(t => t.amount < 0 && t.category === category)
+                .reduce((acc, t) => acc + Math.abs(t.amount), 0);
+        }
+
+        function saveBudget(category) {
+            const input = document.getElementById(`budget-input-${category.replace(/\s+/g, '')}`);
+            const limit = parseFloat(input.value);
+            if (limit > 0) {
+                budgets[category] = limit;
+                localStorage.setItem('budgets', JSON.stringify(budgets));
+                renderBudgets();
+            }
+        }
+
+        function renderBudgets() {
+            budgetList.innerHTML = '';
+            categories.expense.forEach(category => {
+                const limit = budgets[category] || 0;
+                const spent = getSpentByCategory(category);
+                const percent = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                
+                let colorClass = '';
+                if(percent > 90) colorClass = 'danger';
+                else if (percent > 75) colorClass = 'warning';
+
+                const safeId = category.replace(/\s+/g, '');
+
+                budgetList.innerHTML += `
+                    <div class="budget-item">
+                        <div class="budget-header">
+                            <strong>${category}</strong>
+                            <span>$${spent.toFixed(2)} / ${limit > 0 ? '$'+limit.toFixed(2) : 'Sin límite'}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                        </div>
+                        <div class="budget-inputs">
+                            <input type="number" id="budget-input-${safeId}" placeholder="Nuevo límite" step="1">
+                            <button onclick="saveBudget('${category}')">Fijar</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- INICIALIZACIÓN ---
+        function init() {
+            renderTransactions();
+            updateSummary();
+            updateChart();
+            if(document.getElementById('tab-budgets').classList.contains('active')) renderBudgets();
+        }
+
+        form.addEventListener('submit', addTransaction);
+        updateCategories();
+        init();
+    </script>
+</body>
+</html>
